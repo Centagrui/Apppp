@@ -41,18 +41,15 @@ object NotesDestination : NavigationDestination {
     override val route = "notes"
     override val titleRes = R.string.app_name
 }
-
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun NotesScreen(
     navigateToNoteEntry: () -> Unit,
-    navigateToNoteDetail: (Int) -> Unit,
-    modifier: Modifier = Modifier,
-    viewModel: NotesViewModel = viewModel(factory = AppViewModelProvider.Factory)
-) {
+    navigateToNoteDetails: (Int, String) -> Unit
+){
+    val viewModel: NotesViewModel = viewModel(factory = AppViewModelProvider.Factory)
     val notesUiState by viewModel.notesUiState.collectAsState()
     var isReminderView by remember { mutableStateOf(false) }
-
 
     Scaffold(
         topBar = {
@@ -61,7 +58,6 @@ fun NotesScreen(
                     Text(if (isReminderView) "Recordatorios" else "Notas")
                 },
                 actions = {
-                    // Switch para alternar entre Notas y Recordatorios
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
                         modifier = Modifier.padding(end = 16.dp)
@@ -72,30 +68,26 @@ fun NotesScreen(
                         )
                     }
 
-                    // Botón para agregar una nueva nota o recordatorio
-                    IconButton(onClick = {
-                        navigateToNoteEntry()
-                    }) {
-                        Icon(
-                            imageVector = Icons.Default.Add,
-                            contentDescription = "Agregar ${if (isReminderView) "Recordatorio" else "Nota"}"
-                        )
+                    IconButton(onClick = { navigateToNoteEntry() }) {
+                        Icon(imageVector = Icons.Default.Add, contentDescription = null)
                     }
                 }
             )
         }
     ) { padding ->
-        // Filtrar notas o recordatorios según el estado del Switch
+
         val filteredNotes = if (isReminderView) {
-            notesUiState.notes.filter { it.fecha != 0L || it.hora != 0L } // Recordatorios
+            notesUiState.notes.filter { it.fecha != 0L || it.hora != 0L }
         } else {
-            notesUiState.notes.filter { it.fecha == 0L && it.hora == 0L } // Notas
+            notesUiState.notes.filter { it.fecha == 0L && it.hora == 0L }
         }
 
         NotesList(
             notes = filteredNotes,
-            onNoteClick = navigateToNoteDetail,
-            modifier = modifier.padding(padding)
+            onNoteClick = { id, title ->
+                navigateToNoteDetails(id, title)
+            },
+            modifier = Modifier.padding(padding)
         )
     }
 }
@@ -103,54 +95,16 @@ fun NotesScreen(
 @Composable
 private fun NotesList(
     notes: List<Note>,
-    onNoteClick: (Int) -> Unit,
+    onNoteClick: (Int, String) -> Unit,
     modifier: Modifier = Modifier
 ) {
-    LazyColumn(
-        modifier = modifier.fillMaxSize()
-    ) {
+    LazyColumn(modifier = modifier.fillMaxSize()) {
         items(notes, key = { it.id }) { note ->
-            NoteItem(note = note, onClick = { onNoteClick(note.id) })
+            NoteItem(note = note, onClick = { onNoteClick(note.id, note.title) })
         }
     }
+
 }
-
-
-@Composable
-fun PlaySavedVideo(videoUri: Uri, onDismiss: () -> Unit) {
-    Dialog(onDismissRequest = onDismiss) {
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .background(Color.Black)
-        ) {
-            AndroidView(
-                factory = { context ->
-                    VideoView(context).apply {
-                        setVideoURI(videoUri)
-                        setOnPreparedListener { mediaPlayer ->
-                            mediaPlayer.start() // Inicia el video automáticamente
-                        }
-                    }
-                },
-                modifier = Modifier.fillMaxSize()
-            )
-            IconButton(
-                onClick = onDismiss,
-                modifier = Modifier
-                    .align(Alignment.TopEnd)
-                    .padding(16.dp)
-            ) {
-                Icon(
-                    imageVector = Icons.Default.Close,
-                    contentDescription = "Cerrar",
-                    tint = Color.White
-                )
-            }
-        }
-    }
-}
-
 @Composable
 private fun NoteItem(
     note: Note,
@@ -159,10 +113,6 @@ private fun NoteItem(
     val dateFormatter = SimpleDateFormat("dd/MM/yyyy", Locale.getDefault())
     val timeFormatter = SimpleDateFormat("HH:mm", Locale.getDefault())
 
-    var selectedVideoUri by remember { mutableStateOf<Uri?>(null) }
-    // Acceder al Context desde la composable
-    val context = LocalContext.current
-
     Card(
         modifier = Modifier
             .fillMaxWidth()
@@ -170,14 +120,14 @@ private fun NoteItem(
             .clickable(onClick = onClick),
         elevation = CardDefaults.cardElevation(2.dp)
     ) {
-        Column(
-            modifier = Modifier.padding(16.dp)
-        ) {
+        Column(modifier = Modifier.padding(16.dp)) {
+
             Text(text = note.title, style = MaterialTheme.typography.titleLarge)
+
             Spacer(modifier = Modifier.height(4.dp))
+
             Text(text = note.content, style = MaterialTheme.typography.bodyMedium)
 
-            // Mostrar Fecha solo si es válida
             if (note.fecha != 0L) {
                 Spacer(modifier = Modifier.height(8.dp))
                 Text(
@@ -186,38 +136,43 @@ private fun NoteItem(
                 )
             }
 
-            // Mostrar Hora solo si es válida
             if (note.hora != 0L) {
                 Text(
                     text = "Hora: ${timeFormatter.format(Date(note.hora))}",
                     style = MaterialTheme.typography.bodySmall
                 )
             }
+
             Spacer(modifier = Modifier.height(8.dp))
 
-            // Mostrar multimedia
             LazyRow(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                items(note.multimediaUris) { uri ->
-                    val mimeType = getMimeType(Uri.parse(uri), context)
+                items(note.multimediaUris) { uriString ->
+                    val uri = Uri.parse(uriString)
+                    val context = LocalContext.current
+                    val mimeType = getMimeType(uri, context)
+
                     when {
                         mimeType?.startsWith("image/") == true -> {
                             Image(
-                                painter = rememberAsyncImagePainter(model = Uri.parse(uri)),
-                                contentDescription = "Imagen multimedia",
+                                painter = rememberAsyncImagePainter(model = uri),
+                                contentDescription = null,
                                 modifier = Modifier
                                     .width(100.dp)
                                     .height(150.dp)
                             )
                         }
+
                         mimeType?.startsWith("audio/") == true -> {
-                            AudioPlayer(audioUri = Uri.parse(uri))
+                            AudioPlayer(audioUri = uri)
                         }
+
                         mimeType?.startsWith("video/") == true -> {
-                            VideoPlayer(videoUri = Uri.parse(uri), modifier = Modifier.height(200.dp))
+                            VideoPlayer(videoUri = uri, modifier = Modifier.height(200.dp))
                         }
+
                         else -> {
                             Text("Formato no soportado")
                         }
@@ -226,12 +181,5 @@ private fun NoteItem(
             }
         }
     }
-
-    // Muestra el diálogo para reproducir video si un URI está seleccionado
-    selectedVideoUri?.let {
-        PlaySavedVideo(
-            videoUri = it,
-            onDismiss = { selectedVideoUri = null }
-        )
-    }
 }
+

@@ -5,14 +5,23 @@ import androidx.room.Database
 import androidx.room.Room
 import androidx.room.RoomDatabase
 import androidx.room.TypeConverters
-import androidx.room.migration.Migration
-import androidx.sqlite.db.SupportSQLiteDatabase
 import com.example.inventory.ui.item.Converters
 
-@Database(entities = [Note::class], version = 3, exportSchema = false)  // Aumenta la versión a 3
-@TypeConverters(Converters::class) // Registrar los TypeConverters
+@Database(
+    entities = [
+        Note::class,
+        Media::class,
+        Reminder::class   // ← AGREGADO
+    ],
+    version = 5,
+    exportSchema = false
+)
+@TypeConverters(Converters::class)
 abstract class InventoryDatabase : RoomDatabase() {
+
     abstract fun noteDao(): NoteDao
+    abstract fun mediaDao(): MediaDao
+    abstract fun reminderDao(): ReminderDao   // ← AGREGADO
 
     companion object {
         @Volatile
@@ -25,7 +34,7 @@ abstract class InventoryDatabase : RoomDatabase() {
                     InventoryDatabase::class.java,
                     "note_database"
                 )
-                    .fallbackToDestructiveMigration()  // Usa migración destructiva para evitar problemas de migración
+                    .fallbackToDestructiveMigration()
                     .build()
                 INSTANCE = instance
                 instance

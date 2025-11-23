@@ -16,7 +16,7 @@ import androidx.navigation.NavHostController
 import androidx.navigation.compose.rememberNavController
 import androidx.compose.material3.windowsizeclass.WindowSizeClass
 import androidx.compose.material3.windowsizeclass.WindowWidthSizeClass
-import com.example.inventory.ui.navigation.InventoryNavHost
+import com.example.inventory.ui.navigation.InventoryNavGraph   // ← CAMBIO IMPORTANTE
 
 @Composable
 fun InventoryApp(
@@ -24,16 +24,22 @@ fun InventoryApp(
     navController: NavHostController = rememberNavController()
 ) {
     val width = windowSize.widthSizeClass
+
     if (width == WindowWidthSizeClass.Compact) {
 
-        InventoryNavHost(
+        // ============================
+        //   TELÉFONOS
+        // ============================
+        InventoryNavGraph(
             navController = navController,
-            windowSize = windowSize
         )
-    } else {
-        // para pantallas mas grandes despues de telefono
-        Row(Modifier.fillMaxSize()) {
 
+    } else {
+
+        // ============================
+        //   TABLETS / PANTALLAS GRANDES
+        // ============================
+        Row(Modifier.fillMaxSize()) {
 
             Surface(
                 modifier = Modifier
@@ -49,7 +55,10 @@ fun InventoryApp(
                     verticalArrangement = Arrangement.Top
                 ) {
                     IconButton(onClick = { }) {
-                        Icon(imageVector = Icons.Filled.ArrowBack, contentDescription = "Notas")
+                        Icon(
+                            imageVector = Icons.Filled.ArrowBack,
+                            contentDescription = "Notas"
+                        )
                     }
                     Spacer(Modifier.height(8.dp))
                     Text("Notas")
@@ -62,16 +71,14 @@ fun InventoryApp(
                         .padding(inner)
                         .fillMaxSize()
                 ) {
-                    InventoryNavHost(
+                    InventoryNavGraph(
                         navController = navController,
-                        windowSize = windowSize
                     )
                 }
             }
         }
     }
 }
-
 
 @Composable
 fun InventoryTopAppBar(

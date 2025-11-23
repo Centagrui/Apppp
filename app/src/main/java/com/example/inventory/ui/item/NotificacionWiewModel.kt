@@ -15,9 +15,8 @@ import androidx.compose.runtime.setValue
 import androidx.core.app.NotificationCompat
 import androidx.lifecycle.ViewModel
 import com.example.inventory.R
-import com.example.inventory.data.Note
 import com.example.inventory.state.NotasEstado
-
+import com.example.inventory.utils.NotificationUtils
 
 class NotificacionWiewModel : ViewModel() {
 
@@ -26,28 +25,36 @@ class NotificacionWiewModel : ViewModel() {
 
     @Composable
     fun sendNotification(context: Context, fechaEjecucion: Long) {
-        val notificationManager = context.getSystemService(NotificationManager::class.java)
-        val notificacionn = NotificationCompat.Builder(context, NotificacionApp.CHANNEL_ID)
+
+        // Crear canal
+        NotificationUtils.createNotificationChannel(context)
+
+        val notification = NotificationCompat.Builder(context, NotificationUtils.CHANNEL_ID)
             .setContentTitle(state.nombre)
             .setContentText("Descripcion")
             .setSmallIcon(R.drawable.notifications_24)
+            .setPriority(NotificationCompat.PRIORITY_HIGH)
             .setAutoCancel(true)
             .build()
 
-        scheduleNotification(context, notificacionn, fechaEjecucion)
+        scheduleNotification(context, notification, fechaEjecucion)
     }
 
     private fun scheduleNotification(context: Context, notification: Notification, fechaEjecucion: Long) {
+
         val alarmManager = context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
-        val intent = Intent(context, AlarmReceiverNotificacion::class.java)
-        intent.putExtra("EXTRA_NOTIFICATION", notification)
+
+        val intent = Intent(context, AlarmReceiverNotificacion::class.java).apply {
+            putExtra("EXTRA_NOTIFICATION", notification)
+        }
 
         val pendingIntent = PendingIntent.getBroadcast(
             context,
-            1, // Puedes usar un ID único aquí
+            1,
             intent,
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
+
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
             alarmManager.setExactAndAllowWhileIdle(
                 AlarmManager.RTC_WAKEUP,
@@ -62,6 +69,6 @@ class NotificacionWiewModel : ViewModel() {
             )
         }
 
-        Log.e("Alarm", "Alarm scheduled for $fechaEjecucion")
+        Log.e("Alarm", "Notification scheduled for $fechaEjecucion")
     }
 }

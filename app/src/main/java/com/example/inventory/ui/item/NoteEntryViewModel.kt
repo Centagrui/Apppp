@@ -1,72 +1,64 @@
 package com.example.inventory.ui.item
 
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import androidx.lifecycle.ViewModel
-import androidx.lifecycle.viewModelScope
 import com.example.inventory.data.Note
 import com.example.inventory.data.NotesRepository
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.launch
 
 class NoteEntryViewModel(
     private val notesRepository: NotesRepository
 ) : ViewModel() {
 
-    private val _noteUiState = MutableStateFlow(NoteUiState())
-    val noteUiState: StateFlow<NoteUiState> = _noteUiState
+    // ⬅️ NoteUiState SIEMPRE TIENE UN NoteDetails NO NULO
+    var noteUiState by mutableStateOf(NoteUiState())
+        private set
 
-    fun updateTitle(newTitle: String) {
-        val currentNoteDetails = _noteUiState.value.noteDetails ?: NoteDetails()
-        _noteUiState.value = _noteUiState.value.copy(
-            noteDetails = currentNoteDetails.copy(title = newTitle),
-            isEntryValid = validateInput(newTitle, currentNoteDetails.content)
+    // ------------------------------------
+    // ACTUALIZACIÓN DE CAMPOS
+    // ------------------------------------
+    fun updateTitle(newValue: String) {
+        noteUiState = noteUiState.copy(
+            noteDetails = noteUiState.noteDetails.copy(title = newValue)
         )
     }
 
-    fun updateContent(newContent: String) {
-        val currentNoteDetails = _noteUiState.value.noteDetails ?: NoteDetails()
-        _noteUiState.value = _noteUiState.value.copy(
-            noteDetails = currentNoteDetails.copy(content = newContent),
-            isEntryValid = validateInput(currentNoteDetails.title, newContent)
-        )
-    }
-
-    fun updateFecha(newFecha: Long) {
-        val currentNoteDetails = _noteUiState.value.noteDetails ?: NoteDetails()
-        _noteUiState.value = _noteUiState.value.copy(
-            noteDetails = currentNoteDetails.copy(fecha = newFecha)
-        )
-    }
-
-    fun updateHora(newHora: Long) {
-        val currentNoteDetails = _noteUiState.value.noteDetails ?: NoteDetails()
-        _noteUiState.value = _noteUiState.value.copy(
-            noteDetails = currentNoteDetails.copy(hora = newHora)
+    fun updateContent(newValue: String) {
+        noteUiState = noteUiState.copy(
+            noteDetails = noteUiState.noteDetails.copy(content = newValue)
         )
     }
 
     fun updateMultimediaUris(uris: List<String>) {
-        val currentNoteDetails = _noteUiState.value.noteDetails ?: NoteDetails()
-        _noteUiState.value = _noteUiState.value.copy(
-            noteDetails = currentNoteDetails.copy(multimediaUris = uris)
+        noteUiState = noteUiState.copy(
+            noteDetails = noteUiState.noteDetails.copy(multimediaUris = uris)
         )
     }
 
-    private fun validateInput(title: String, content: String): Boolean {
-        return title.isNotBlank() && content.isNotBlank()
+    // ------------------------------------
+    // VALIDACIÓN
+    // ------------------------------------
+    val isEntryValid: Boolean
+        get() = noteUiState.noteDetails.title.isNotBlank()
+
+    // ------------------------------------
+    // CONVERSIÓN DE NOTEDETAILS → NOTE
+    // ------------------------------------
+    private fun NoteDetails.toNote(): Note {
+        return Note(
+            id = id,
+            title = title,
+            content = content,
+            multimediaUris = multimediaUris
+        )
     }
 
-    fun saveNote() {
-        val noteDetails = _noteUiState.value.noteDetails
-        if (_noteUiState.value.isEntryValid && noteDetails != null) {
-            viewModelScope.launch {
-                try {
-                    notesRepository.insertNote(noteDetails.toNote())
-                } catch (e: Exception) {
-                    // Manejo de errores
-                    println("Error al guardar la nota: ${e.message}")
-                }
-            }
-        }
+    // ------------------------------------
+    // GUARDAR NOTA Y RETORNAR ID
+    // ------------------------------------
+    suspend fun saveNoteAndReturnId(): Int {
+        val note = noteUiState.noteDetails.toNote()
+        return notesRepository.insertNoteReturnId(note)
     }
 }
